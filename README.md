@@ -11,7 +11,7 @@ Bot Discord em Node.js com `discord.js`, sorteios automáticos e abertura de ate
 ## Rodar localmente
 
 1. Copie `.env.example` para `.env`.
-2. Preencha `DISCORD_TOKEN` e `DISCORD_CLIENT_ID`. Nunca publique o `.env`.
+2. Preencha `DISCORD_TOKEN` e `ID_CLIENTE`. Nunca publique o `.env`.
 3. Instale as dependências:
 
    ```bash
@@ -53,7 +53,7 @@ Se for usar automação, configure `GITHUB_TOKEN` como secret do ambiente. Não 
 
 1. Crie um novo projeto no Railway a partir do repositório do GitHub.
 2. O Railway detectará o `Dockerfile` e usará Node 20 Alpine.
-3. Em **Variables**, adicione `DISCORD_TOKEN` e `DISCORD_CLIENT_ID`.
+3. Em **Variables**, adicione `DISCORD_TOKEN` e `ID_CLIENTE`.
 4. Faça o deploy. O `railway.toml` configura o Dockerfile e reinício automático em caso de falha.
 
 O `GITHUB_TOKEN` não é necessário para o bot funcionar em produção; ele só deve existir se você optar por alguma automação de GitHub.

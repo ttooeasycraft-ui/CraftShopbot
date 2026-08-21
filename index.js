@@ -15,7 +15,7 @@ const {
   Routes,
 } = require("discord.js");
 
-const required = ["DISCORD_TOKEN", "DISCORD_CLIENT_ID"];
+const required = ["DISCORD_TOKEN", "ID_CLIENTE"];
 for (const name of required) {
   if (!process.env[name]) throw new Error(`Variável obrigatória ausente: ${name}`);
 }
@@ -126,7 +126,7 @@ const commands = [
 client.once("ready", async () => {
   readGiveaways();
   const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN);
-  await rest.put(Routes.applicationCommands(process.env.DISCORD_CLIENT_ID), { body: commands });
+  await rest.put(Routes.applicationCommands(process.env.ID_CLIENTE), { body: commands });
   const giveawayChannel = await client.channels.fetch(GIVEAWAY_CHANNEL_ID).catch(() => null);
   if (giveawayChannel?.isTextBased()) await ensureInfoEmbed(giveawayChannel);
   for (const giveaway of giveaways.values()) {
