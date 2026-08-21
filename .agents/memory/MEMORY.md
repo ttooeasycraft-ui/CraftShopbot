@@ -1,0 +1,1 @@
+- [npm lockfile compatibility](package-lock-workspace.md) — generate Docker's npm lockfile from an isolated copy when pnpm workspace tooling rejects root installs.
