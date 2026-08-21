@@ -109,6 +109,31 @@ async function ensureInfoEmbed(channel) {
   if (!message.pinned) await message.pin().catch(() => {});
 }
 
+async function ensureSupportPanel(channel) {
+  const messages = await channel.messages.fetch({ limit: 50 });
+  const existing = messages.find((message) => message.author.id === client.user.id && message.embeds[0]?.title === "Suporte");
+  const embed = new EmbedBuilder()
+    .setTitle("Suporte")
+    .setColor(0x3b82f6)
+    .setDescription("Precisando de ajuda? Crie um ticket aqui e nossa equipe vai te atender o mais rápido possível.");
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId("support_open").setLabel("Criar Ticket").setStyle(ButtonStyle.Primary),
+  );
+  const message = existing || await channel.send({ embeds: [embed], components: [row] });
+  if (!message.pinned) await message.pin().catch(() => {});
+}
+
+function isStaff(interaction) {
+  return Boolean(interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild));
+}
+
+function ticketControls() {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId("ticket_close").setLabel("Fechar Ticket").setEmoji("🔒").setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId("ticket_claim").setLabel("Reivindicar Ticket").setEmoji("📜").setStyle(ButtonStyle.Secondary),
+  );
+}
+
 const commands = [
   {
     name: "sorteio",
@@ -129,6 +154,8 @@ client.once("ready", async () => {
   await rest.put(Routes.applicationCommands(process.env.ID_CLIENTE), { body: commands });
   const giveawayChannel = await client.channels.fetch(GIVEAWAY_CHANNEL_ID).catch(() => null);
   if (giveawayChannel?.isTextBased()) await ensureInfoEmbed(giveawayChannel);
+  const supportChannel = await client.channels.fetch(SUPPORT_CHANNEL_ID).catch(() => null);
+  if (supportChannel?.isTextBased()) await ensureSupportPanel(supportChannel);
   for (const giveaway of giveaways.values()) {
     const delay = Math.max(0, giveaway.endsAt - Date.now());
     setTimeout(() => finishGiveaway(giveaway), delay);
@@ -160,13 +187,10 @@ client.on("interactionCreate", async (interaction) => {
   }
 
   if (interaction.isChatInputCommand() && interaction.commandName === "suporte") {
-    if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) return interaction.reply({ content: "Apenas a staff pode publicar o painel de suporte.", ephemeral: true });
+    if (!isStaff(interaction)) return interaction.reply({ content: "Apenas a staff pode publicar o painel de suporte.", ephemeral: true });
     const channel = await client.channels.fetch(SUPPORT_CHANNEL_ID).catch(() => null);
     if (!channel?.isTextBased()) return interaction.reply({ content: "O canal de suporte não foi encontrado.", ephemeral: true });
-    await channel.send({
-      embeds: [new EmbedBuilder().setTitle("Suporte CraftShop").setColor(0x3b82f6).setDescription("Precisa de ajuda? Clique no botão abaixo para abrir um atendimento privado com a equipe.")],
-      components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId("support_open").setLabel("Abrir atendimento").setStyle(ButtonStyle.Primary))],
-    });
+    await ensureSupportPanel(channel);
     return interaction.reply({ content: `Painel publicado em ${channel}.`, ephemeral: true });
   }
 
@@ -186,19 +210,46 @@ client.on("interactionCreate", async (interaction) => {
 
   if (interaction.isButton() && interaction.customId === "support_open") {
     const guild = interaction.guild;
-    const existing = guild.channels.cache.find((channel) => channel.name === `atendimento-${interaction.user.id}`);
+    const existing = guild.channels.cache.find((channel) => channel.topic === `ticket-owner:${interaction.user.id}`);
     if (existing) return interaction.reply({ content: `Você já possui um atendimento aberto: ${existing}.`, ephemeral: true });
+    const staffRoles = guild.roles.cache.filter((role) => role.id !== guild.roles.everyone.id && role.permissions.has(PermissionFlagsBits.ManageGuild));
     const ticket = await guild.channels.create({
-      name: `atendimento-${interaction.user.id}`,
+      name: `ticket-${interaction.user.username.toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 18) || interaction.user.id.slice(-6)}`,
       type: ChannelType.GuildText,
       parent: interaction.channel.parentId || undefined,
+      topic: `ticket-owner:${interaction.user.id}`,
       permissionOverwrites: [
         { id: guild.roles.everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
         { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
+        ...staffRoles.map((role) => ({
+          id: role.id,
+          allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageChannels],
+        })),
       ],
     });
-    await ticket.send(`Olá, ${interaction.user}. Explique como podemos ajudar. A staff responderá aqui.`);
+    await ticket.send({
+      embeds: [new EmbedBuilder().setTitle("Ticket Aberto").setColor(0x22c55e).setDescription(`${interaction.user} criou um novo ticket. Explique como podemos ajudar.`)],
+      components: [ticketControls()],
+    });
     await interaction.reply({ content: `Seu atendimento foi aberto: ${ticket}.`, ephemeral: true });
+  }
+
+  if (interaction.isButton() && ["ticket_close", "ticket_claim"].includes(interaction.customId)) {
+    const channel = interaction.channel;
+    if (!channel?.isTextBased() || !channel.topic?.startsWith("ticket-owner:")) {
+      return interaction.reply({ content: "Este botão só funciona dentro de um ticket.", ephemeral: true });
+    }
+    const ownerId = channel.topic.replace("ticket-owner:", "");
+    if (interaction.customId === "ticket_claim") {
+      if (!isStaff(interaction)) return interaction.reply({ content: "Apenas a staff pode reivindicar tickets.", ephemeral: true });
+      await channel.send(`📜 Ticket reivindicado por ${interaction.user}.`);
+      return interaction.reply({ content: "Você reivindicou este ticket.", ephemeral: true });
+    }
+    if (!isStaff(interaction) && interaction.user.id !== ownerId) {
+      return interaction.reply({ content: "Apenas o autor do ticket ou a staff pode fechá-lo.", ephemeral: true });
+    }
+    await interaction.reply({ content: "Este ticket será fechado em 5 segundos.", ephemeral: true });
+    setTimeout(() => channel.delete("Ticket fechado").catch(() => {}), 5000);
   }
 });
 

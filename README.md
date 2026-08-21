@@ -7,6 +7,7 @@ Bot Discord em Node.js com `discord.js`, sorteios automáticos e abertura de ate
 - Node.js 20 ou superior
 - Uma aplicação/bot criado no [Discord Developer Portal](https://discord.com/developers/applications)
 - Permissão do bot para gerenciar comandos, enviar mensagens, incorporar links, gerenciar canais e fixar mensagens
+- Para tickets, o bot também precisa de **Gerenciar canais** e a staff deve ter **Gerenciar servidor**
 
 ## Rodar localmente
 
@@ -32,7 +33,11 @@ Use `/sorteio premio:... duracao:30m ganhadores:1`. A duração aceita `s` (segu
 
 ### Suporte
 
-Use `/suporte` em um servidor para publicar o painel no canal configurado. Cada membro pode abrir um canal privado de atendimento. A regra adicional do suporte ainda pode ser personalizada conforme a necessidade da comunidade.
+Use `/suporte` em um servidor para publicar ou reparar o painel fixado no canal configurado. O painel contém o texto:
+
+> Precisando de ajuda? Crie um ticket aqui e nossa equipe vai te atender o mais rápido possível.
+
+Cada membro pode abrir um canal privado de ticket. Dentro dele existem os botões **Fechar Ticket** e **Reivindicar Ticket**. O botão de reivindicação é restrito à staff; o ticket pode ser fechado pelo autor ou pela staff.
 
 ## GitHub
 
@@ -53,7 +58,10 @@ Se for usar automação, configure `GITHUB_TOKEN` como secret do ambiente. Não 
 
 1. Crie um novo projeto no Railway a partir do repositório do GitHub.
 2. O Railway detectará o `Dockerfile` e usará Node 20 Alpine.
-3. Em **Variables**, adicione `DISCORD_TOKEN` e `ID_CLIENTE`.
+3. Em **Variables**, adicione ou substitua:
+   - `DISCORD_TOKEN` — token atual do bot, após regenerá-lo no Discord Developer Portal
+   - `ID_CLIENTE` — Application ID atual do bot
+   - `GITHUB_TOKEN` — somente se alguma automação de GitHub for usada; o bot não precisa desta variável para funcionar
 4. Faça o deploy. O `railway.toml` configura o Dockerfile e reinício automático em caso de falha.
 
-O `GITHUB_TOKEN` não é necessário para o bot funcionar em produção; ele só deve existir se você optar por alguma automação de GitHub.
+O Dockerfile copia `package.json` e `package-lock.json`, executa `npm ci --omit=dev` e só depois inicia `node index.js`. Se o Railway mostrar `Cannot find module 'dotenv'`, confirme que o serviço está usando o branch `main` e faça um novo deploy sem cache.
