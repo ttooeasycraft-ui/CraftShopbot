@@ -114,7 +114,13 @@ async function ensureInfoEmbed(channel) {
     .addFields({ name: "⛏️ Craft Shop", value: "Prêmios, criatividade e muita diversão em um só lugar.", inline: false })
     .setFooter({ text: "Craft Shop • Minecraft Graphics & Digital Goods" });
   const message = existing || await channel.send({ embeds: [embed] });
-  if (!message.pinned) await message.pin().catch(() => {});
+  console.log(`[painel:sorteios] ${existing ? `mensagem existente encontrada (${message.id})` : `mensagem enviada (${message.id})`}`);
+  if (!message.pinned) {
+    await message.pin();
+    console.log(`[painel:sorteios] mensagem fixada com sucesso (${message.id})`);
+  } else {
+    console.log(`[painel:sorteios] mensagem já estava fixada (${message.id})`);
+  }
 }
 
 async function ensureSupportPanel(channel) {
@@ -123,7 +129,24 @@ async function ensureSupportPanel(channel) {
   const embed = new EmbedBuilder()
     .setTitle("Suporte")
     .setColor(BRAND.purple)
-    .setDescription("Precisando de ajuda? Crie um ticket aqui e nossa equipe vai te atender o mais rápido possível.")
+    .setDescription(`Abra um ticket para seu pedido aqui!
+Informe o serviço desejado, data de entrega e qualquer detalhe importante.
+Clientes com reserva têm prioridade no atendimento.
+
+Como faço a reserva?
+
+Clique em 'abrir ticket'
+
+Escolha o produto/serviço que deseja.
+
+Envie uma mensagem no privado ou no ticket aberto 🔓 informando:
+- Nome do produto/serviço
+- Quantidade
+- Qualquer detalhe ou personalização que queira
+
+Aguarde a confirmação da sua reserva.
+
+Pronto! Sua vaga está garantida. 🎉`)
     .addFields(
       { name: "🎮 Atendimento Craft Shop", value: "Nossa equipe está pronta para ajudar com seus pedidos e produtos digitais.", inline: false },
       { name: "🧱 Como funciona", value: "Clique abaixo, explique o que precisa e aguarde a nossa equipe.", inline: false },
@@ -133,7 +156,49 @@ async function ensureSupportPanel(channel) {
     new ButtonBuilder().setCustomId("support_open").setLabel("Criar Ticket").setEmoji("🎮").setStyle(ButtonStyle.Primary),
   );
   const message = existing || await channel.send({ embeds: [embed], components: [row] });
-  if (!message.pinned) await message.pin().catch(() => {});
+  console.log(`[painel:suporte] ${existing ? `mensagem existente encontrada (${message.id})` : `mensagem enviada (${message.id})`}`);
+  if (!message.pinned) {
+    await message.pin();
+    console.log(`[painel:suporte] mensagem fixada com sucesso (${message.id})`);
+  } else {
+    console.log(`[painel:suporte] mensagem já estava fixada (${message.id})`);
+  }
+}
+
+async function ensurePanelInChannel(label, channelId, ensurePanel) {
+  console.log(`[painel:${label}] buscando canal pelo ID ${channelId}`);
+  try {
+    const channel = await client.channels.fetch(channelId);
+    if (!channel) {
+      console.error(`[painel:${label}] canal não encontrado (${channelId})`);
+      return;
+    }
+    if (!channel.isTextBased() || !channel.messages) {
+      console.error(`[painel:${label}] canal encontrado, mas não é um canal de texto utilizável (${channelId})`);
+      return;
+    }
+    console.log(`[painel:${label}] canal encontrado: #${channel.name || "sem-nome"} (${channel.id})`);
+    const permissions = channel.permissionsFor(client.user);
+    const requiredPermissions = [
+      ["ViewChannel", PermissionFlagsBits.ViewChannel],
+      ["ReadMessageHistory", PermissionFlagsBits.ReadMessageHistory],
+      ["SendMessages", PermissionFlagsBits.SendMessages],
+      ["EmbedLinks", PermissionFlagsBits.EmbedLinks],
+      ["PinMessages", PermissionFlagsBits.PinMessages],
+    ];
+    const missing = permissions
+      ? requiredPermissions.filter(([, flag]) => !permissions.has(flag)).map(([name]) => name)
+      : requiredPermissions.map(([name]) => name);
+    if (missing.length) {
+      console.error(`[painel:${label}] permissões ausentes: ${missing.join(", ")}`);
+      return;
+    }
+    console.log(`[painel:${label}] permissões necessárias confirmadas`);
+    await ensurePanel(channel);
+    console.log(`[painel:${label}] verificação concluída sem duplicação`);
+  } catch (error) {
+    console.error(`[painel:${label}] erro durante busca/envio/fixação:`, error);
+  }
 }
 
 function isStaff(interaction) {
@@ -162,13 +227,20 @@ const commands = [
 ];
 
 client.once("ready", async () => {
+  console.log(`[ready] Discord conectado como ${client.user.tag}`);
+  console.log(`[ready] canais configurados: sorteios=${GIVEAWAY_CHANNEL_ID}, suporte=${SUPPORT_CHANNEL_ID}`);
   readGiveaways();
   const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN);
-  await rest.put(Routes.applicationCommands(process.env.ID_CLIENTE), { body: commands });
-  const giveawayChannel = await client.channels.fetch(GIVEAWAY_CHANNEL_ID).catch(() => null);
-  if (giveawayChannel?.isTextBased()) await ensureInfoEmbed(giveawayChannel);
-  const supportChannel = await client.channels.fetch(SUPPORT_CHANNEL_ID).catch(() => null);
-  if (supportChannel?.isTextBased()) await ensureSupportPanel(supportChannel);
+  try {
+    await rest.put(Routes.applicationCommands(process.env.ID_CLIENTE), { body: commands });
+    console.log("[ready] comandos slash registrados");
+  } catch (error) {
+    console.error("[ready] erro ao registrar comandos slash; continuando com os painéis:", error);
+  }
+  await Promise.all([
+    ensurePanelInChannel("sorteios", GIVEAWAY_CHANNEL_ID, ensureInfoEmbed),
+    ensurePanelInChannel("suporte", SUPPORT_CHANNEL_ID, ensureSupportPanel),
+  ]);
   for (const giveaway of giveaways.values()) {
     const delay = Math.max(0, giveaway.endsAt - Date.now());
     setTimeout(() => finishGiveaway(giveaway), delay);
