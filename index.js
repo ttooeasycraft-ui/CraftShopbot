@@ -23,6 +23,12 @@ for (const name of required) {
 const GIVEAWAY_CHANNEL_ID = "1363301153919729780";
 const SUPPORT_CHANNEL_ID = "1363301154351616017";
 const DATA_FILE = path.join(__dirname, "data", "giveaways.json");
+const BRAND = {
+  green: 0x22c55e,
+  orange: 0xf97316,
+  blue: 0x38bdf8,
+  purple: 0xa855f7,
+};
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers],
 });
@@ -56,14 +62,14 @@ function parseDuration(value) {
 
 function giveawayEmbed(giveaway, ended = false) {
   return new EmbedBuilder()
-    .setTitle("🎉 Sorteios")
-    .setColor(ended ? 0x6b7280 : 0x22c55e)
+    .setTitle("Sorteios")
+    .setColor(ended ? 0x6b7280 : BRAND.green)
     .setDescription(
       ended
-        ? `**Sorteio encerrado**\n\nPrêmio: **${giveaway.prize}**\nGanhadores: ${giveaway.winners?.map((id) => `<@${id}>`).join(", ") || "Nenhum"}`
-        : `**${giveaway.prize}**\n\nClique em **Participar** para concorrer.\nGanhadores: **${giveaway.winnerCount}**\nEncerra em: <t:${Math.floor(giveaway.endsAt / 1000)}:R>`,
+        ? `🎉 **Sorteio encerrado**\n\n⛏️ Prêmio: **${giveaway.prize}**\n💎 Ganhadores: ${giveaway.winners?.map((id) => `<@${id}>`).join(", ") || "Nenhum"}`
+        : `🎉 **${giveaway.prize}**\n\n🧱 Clique em **Participar** para concorrer.\n💎 Ganhadores: **${giveaway.winnerCount}**\n⏳ Encerra em: <t:${Math.floor(giveaway.endsAt / 1000)}:R>`,
     )
-    .setFooter({ text: "Sorteios ativos e encerrados serão postados aqui." })
+    .setFooter({ text: "Craft Shop • Minecraft Graphics & Digital Goods" })
     .setTimestamp();
 }
 
@@ -100,24 +106,31 @@ async function finishGiveaway(giveaway) {
 
 async function ensureInfoEmbed(channel) {
   const messages = await channel.messages.fetch({ limit: 50 });
-  const existing = messages.find((message) => message.author.id === client.user.id && message.embeds[0]?.title === "🎉 Sorteios");
+  const existing = messages.find((message) => message.author.id === client.user.id && ["Sorteios", "🎉 Sorteios"].includes(message.embeds[0]?.title));
   const embed = new EmbedBuilder()
     .setTitle("Sorteios")
-    .setColor(0x22c55e)
-    .setDescription("🎉 Sorteios ativos e encerrados serão postados aqui. Fique atento(a) para não perder prêmios incríveis! Participe e marque os amigos!");
+    .setColor(BRAND.green)
+    .setDescription("🎉 Sorteios ativos e encerrados serão postados aqui. Fique atento(a) para não perder prêmios incríveis! Participe e marque os amigos!")
+    .addFields({ name: "⛏️ Craft Shop", value: "Prêmios, criatividade e muita diversão em um só lugar.", inline: false })
+    .setFooter({ text: "Craft Shop • Minecraft Graphics & Digital Goods" });
   const message = existing || await channel.send({ embeds: [embed] });
   if (!message.pinned) await message.pin().catch(() => {});
 }
 
 async function ensureSupportPanel(channel) {
   const messages = await channel.messages.fetch({ limit: 50 });
-  const existing = messages.find((message) => message.author.id === client.user.id && message.embeds[0]?.title === "Suporte");
+  const existing = messages.find((message) => message.author.id === client.user.id && ["Suporte", "Suporte CraftShop"].includes(message.embeds[0]?.title));
   const embed = new EmbedBuilder()
     .setTitle("Suporte")
-    .setColor(0x3b82f6)
-    .setDescription("Precisando de ajuda? Crie um ticket aqui e nossa equipe vai te atender o mais rápido possível.");
+    .setColor(BRAND.purple)
+    .setDescription("Precisando de ajuda? Crie um ticket aqui e nossa equipe vai te atender o mais rápido possível.")
+    .addFields(
+      { name: "🎮 Atendimento Craft Shop", value: "Nossa equipe está pronta para ajudar com seus pedidos e produtos digitais.", inline: false },
+      { name: "🧱 Como funciona", value: "Clique abaixo, explique o que precisa e aguarde a nossa equipe.", inline: false },
+    )
+    .setFooter({ text: "Craft Shop • thumbnails, banners e artes personalizadas" });
   const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId("support_open").setLabel("Criar Ticket").setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId("support_open").setLabel("Criar Ticket").setEmoji("🎮").setStyle(ButtonStyle.Primary),
   );
   const message = existing || await channel.send({ embeds: [embed], components: [row] });
   if (!message.pinned) await message.pin().catch(() => {});
