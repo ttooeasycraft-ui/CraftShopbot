@@ -163,17 +163,17 @@ Pronto! Sua vaga está garantida. 🎉`)
       { name: "🧱 Como funciona", value: "Clique abaixo, explique o que precisa e aguarde a nossa equipe.", inline: false },
     )
     .setFooter({ text: "Craft Shop • thumbnails, banners e artes personalizadas" });
-  const partnershipEmoji = findCustomEmoji(channel.guild, ["parceria", "partner"]);
-  const supportEmoji = findCustomEmoji(channel.guild, ["suporte", "support", "help"]);
-  const purchaseEmoji = findCustomEmoji(channel.guild, ["reserva", "compra", "shop", "buy"]);
+  const partnershipEmoji = findCustomEmoji(channel.guild, ["parceria", "partner", "divulgacao", "megafone"]);
+  const supportEmoji = findCustomEmoji(channel.guild, ["suporte", "support", "help", "adm", "dono"]);
+  const purchaseEmoji = findCustomEmoji(channel.guild, ["reserva", "compra", "shop", "buy", "ticket"]);
   console.log(`[painel:suporte] emojis customizados: parcerias=${partnershipEmoji?.name || "não encontrado"}, suporte=${supportEmoji?.name || "não encontrado"}, reserva=${purchaseEmoji?.name || "não encontrado"}`);
   const menu = new StringSelectMenuBuilder()
     .setCustomId("support_category")
     .setPlaceholder("Selecione o tipo de atendimento")
     .addOptions(
-      { label: "Parcerias", description: "Fale com a equipe sobre divulgação e parcerias do seu servidor", value: "parcerias", ...(partnershipEmoji && { emoji: { id: partnershipEmoji.id, name: partnershipEmoji.name } }) },
-      { label: "Suporte", description: "Tire dúvidas ou peça ajuda com a equipe", value: "suporte", ...(supportEmoji && { emoji: { id: supportEmoji.id, name: supportEmoji.name } }) },
-      { label: "Reserva/Compra", description: "Reserve ou compre um produto/serviço da Craft Shop", value: "reserva-compra", ...(purchaseEmoji && { emoji: { id: purchaseEmoji.id, name: purchaseEmoji.name } }) },
+      { label: "Parcerias", description: "Fale com dono/ADM sobre divulgação do seu servidor; envie o TXT do servidor", value: "parcerias", ...(partnershipEmoji && { emoji: { id: partnershipEmoji.id, name: partnershipEmoji.name } }) },
+      { label: "Suporte", description: "Crie um ticket para falar com o ADM/DONO e receber ajuda", value: "suporte", ...(supportEmoji && { emoji: { id: supportEmoji.id, name: supportEmoji.name } }) },
+      { label: "Reserva/Compra", description: "Crie um ticket para fazer sua reserva ou realizar uma compra", value: "reserva-compra", ...(purchaseEmoji && { emoji: { id: purchaseEmoji.id, name: purchaseEmoji.name } }) },
     );
   const menuRow = new ActionRowBuilder().addComponents(menu);
   const message = existing
