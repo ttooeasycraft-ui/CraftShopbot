@@ -33,11 +33,11 @@ Use `/sorteio premio:... duracao:30m ganhadores:1`. A duração aceita `s` (segu
 
 ### Suporte
 
-Use `/suporte` em um servidor para publicar ou reparar o painel no canal configurado. O painel contém o texto:
+Use `/suporte` em um servidor para publicar ou reparar o painel no canal configurado. O painel possui apenas um menu de seleção com as categorias Parcerias, Suporte e Reserva/Compra; não há botão separado para abrir tickets.
 
 > Precisando de ajuda? Crie um ticket aqui e nossa equipe vai te atender o mais rápido possível.
 
-Cada membro pode abrir um canal privado de ticket. Dentro dele existem os botões **Fechar Ticket** e **Reivindicar Ticket**. O botão de reivindicação é restrito à staff; o ticket pode ser fechado pelo autor ou pela staff.
+Cada membro pode abrir um canal privado dentro da categoria de tickets configurada no código. Dentro dele existem os botões **Fechar Ticket** e **Reivindicar Ticket**. O botão de reivindicação é restrito à staff; o ticket pode ser fechado pelo autor ou pela staff. Os cargos configurados de staff e o bot recebem acesso ao canal.
 
 ## GitHub
 

@@ -23,6 +23,13 @@ for (const name of required) {
 
 const GIVEAWAY_CHANNEL_ID = "1363301153919729780";
 const SUPPORT_CHANNEL_ID = "1363301154351616017";
+const TICKET_CATEGORY_ID = "1363301154351616012";
+const STAFF_ROLE_IDS = [
+  "1363301153911078924",
+  "1437575913897197618",
+  "1363301153911078925",
+  "1363301153911078926",
+];
 const DATA_FILE = path.join(__dirname, "data", "giveaways.json");
 const BRAND = {
   green: 0x22c55e,
@@ -160,9 +167,6 @@ Pronto! Sua vaga está garantida. 🎉`)
   const supportEmoji = findCustomEmoji(channel.guild, ["suporte", "support", "help"]);
   const purchaseEmoji = findCustomEmoji(channel.guild, ["reserva", "compra", "shop", "buy"]);
   console.log(`[painel:suporte] emojis customizados: parcerias=${partnershipEmoji?.name || "não encontrado"}, suporte=${supportEmoji?.name || "não encontrado"}, reserva=${purchaseEmoji?.name || "não encontrado"}`);
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId("support_open").setLabel("Criar Ticket").setEmoji("🎮").setStyle(ButtonStyle.Primary),
-  );
   const menu = new StringSelectMenuBuilder()
     .setCustomId("support_category")
     .setPlaceholder("Selecione o tipo de atendimento")
@@ -173,8 +177,8 @@ Pronto! Sua vaga está garantida. 🎉`)
     );
   const menuRow = new ActionRowBuilder().addComponents(menu);
   const message = existing
-    ? await existing.edit({ embeds: [embed], components: [row, menuRow] })
-    : await channel.send({ embeds: [embed], components: [row, menuRow] });
+    ? await existing.edit({ embeds: [embed], components: [menuRow] })
+    : await channel.send({ embeds: [embed], components: [menuRow] });
   console.log(`[painel:suporte] ${existing ? `mensagem existente encontrada (${message.id})` : `mensagem enviada (${message.id})`}`);
 }
 
@@ -303,12 +307,9 @@ client.on("interactionCreate", async (interaction) => {
     saveGiveaways();
   }
 
-  if (
-    (interaction.isButton() && interaction.customId === "support_open") ||
-    (interaction.isStringSelectMenu() && interaction.customId === "support_category")
-  ) {
+  if (interaction.isStringSelectMenu() && interaction.customId === "support_category") {
     const guild = interaction.guild;
-    const category = interaction.isStringSelectMenu() ? interaction.values[0] : "suporte";
+    const category = interaction.values[0];
     const categoryNames = {
       parcerias: "Parcerias",
       suporte: "Suporte",
@@ -317,19 +318,28 @@ client.on("interactionCreate", async (interaction) => {
     const categoryName = categoryNames[category] || "Suporte";
     const existing = guild.channels.cache.find((channel) => channel.topic?.startsWith(`ticket-owner:${interaction.user.id}`));
     if (existing) return interaction.reply({ content: `Você já possui um atendimento aberto: ${existing}.`, ephemeral: true });
-    const staffRoles = guild.roles.cache.filter((role) => role.id !== guild.roles.everyone.id && role.permissions.has(PermissionFlagsBits.ManageGuild));
+    const staffRoles = STAFF_ROLE_IDS.filter((roleId) => guild.roles.cache.has(roleId));
+    const missingStaffRoles = STAFF_ROLE_IDS.filter((roleId) => !guild.roles.cache.has(roleId));
+    if (missingStaffRoles.length) console.error(`[ticket] cargos de staff não encontrados no servidor: ${missingStaffRoles.join(", ")}`);
+    const botPermissions = [
+      PermissionFlagsBits.ViewChannel,
+      PermissionFlagsBits.SendMessages,
+      PermissionFlagsBits.ReadMessageHistory,
+      PermissionFlagsBits.ManageChannels,
+    ];
     const ticket = await guild.channels.create({
       name: `ticket-${categoryName.toLowerCase()}-${interaction.user.username.toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 12) || interaction.user.id.slice(-6)}`,
       type: ChannelType.GuildText,
-      parent: interaction.channel.parentId || undefined,
+      parent: TICKET_CATEGORY_ID,
       topic: `ticket-owner:${interaction.user.id};ticket-category:${category}`,
       permissionOverwrites: [
         { id: guild.roles.everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
         { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
-        ...staffRoles.map((role) => ({
-          id: role.id,
+        ...staffRoles.map((roleId) => ({
+          id: roleId,
           allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageChannels],
         })),
+        { id: client.user.id, allow: botPermissions },
       ],
     });
     await ticket.send({
