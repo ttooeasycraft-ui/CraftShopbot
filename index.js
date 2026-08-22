@@ -13,6 +13,7 @@ const {
   PermissionFlagsBits,
   REST,
   Routes,
+  StringSelectMenuBuilder,
 } = require("discord.js");
 
 const required = ["DISCORD_TOKEN", "ID_CLIENTE"];
@@ -113,14 +114,17 @@ async function ensureInfoEmbed(channel) {
     .setDescription("🎉 Sorteios ativos e encerrados serão postados aqui. Fique atento(a) para não perder prêmios incríveis! Participe e marque os amigos!")
     .addFields({ name: "⛏️ Craft Shop", value: "Prêmios, criatividade e muita diversão em um só lugar.", inline: false })
     .setFooter({ text: "Craft Shop • Minecraft Graphics & Digital Goods" });
-  const message = existing || await channel.send({ embeds: [embed] });
+  const message = existing
+    ? await existing.edit({ embeds: [embed], components: [] })
+    : await channel.send({ embeds: [embed] });
   console.log(`[painel:sorteios] ${existing ? `mensagem existente encontrada (${message.id})` : `mensagem enviada (${message.id})`}`);
-  if (!message.pinned) {
-    await message.pin();
-    console.log(`[painel:sorteios] mensagem fixada com sucesso (${message.id})`);
-  } else {
-    console.log(`[painel:sorteios] mensagem já estava fixada (${message.id})`);
-  }
+}
+
+function findCustomEmoji(guild, keywords) {
+  return guild?.emojis.cache.find((emoji) => {
+    const normalizedName = emoji.name?.toLowerCase() || "";
+    return emoji.available && keywords.some((keyword) => normalizedName.includes(keyword));
+  });
 }
 
 async function ensureSupportPanel(channel) {
@@ -152,17 +156,26 @@ Pronto! Sua vaga está garantida. 🎉`)
       { name: "🧱 Como funciona", value: "Clique abaixo, explique o que precisa e aguarde a nossa equipe.", inline: false },
     )
     .setFooter({ text: "Craft Shop • thumbnails, banners e artes personalizadas" });
+  const partnershipEmoji = findCustomEmoji(channel.guild, ["parceria", "partner"]);
+  const supportEmoji = findCustomEmoji(channel.guild, ["suporte", "support", "help"]);
+  const purchaseEmoji = findCustomEmoji(channel.guild, ["reserva", "compra", "shop", "buy"]);
+  console.log(`[painel:suporte] emojis customizados: parcerias=${partnershipEmoji?.name || "não encontrado"}, suporte=${supportEmoji?.name || "não encontrado"}, reserva=${purchaseEmoji?.name || "não encontrado"}`);
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId("support_open").setLabel("Criar Ticket").setEmoji("🎮").setStyle(ButtonStyle.Primary),
   );
-  const message = existing || await channel.send({ embeds: [embed], components: [row] });
+  const menu = new StringSelectMenuBuilder()
+    .setCustomId("support_category")
+    .setPlaceholder("Selecione o tipo de atendimento")
+    .addOptions(
+      { label: "Parcerias", description: "Fale com a equipe sobre divulgação e parcerias do seu servidor", value: "parcerias", ...(partnershipEmoji && { emoji: { id: partnershipEmoji.id, name: partnershipEmoji.name } }) },
+      { label: "Suporte", description: "Tire dúvidas ou peça ajuda com a equipe", value: "suporte", ...(supportEmoji && { emoji: { id: supportEmoji.id, name: supportEmoji.name } }) },
+      { label: "Reserva/Compra", description: "Reserve ou compre um produto/serviço da Craft Shop", value: "reserva-compra", ...(purchaseEmoji && { emoji: { id: purchaseEmoji.id, name: purchaseEmoji.name } }) },
+    );
+  const menuRow = new ActionRowBuilder().addComponents(menu);
+  const message = existing
+    ? await existing.edit({ embeds: [embed], components: [row, menuRow] })
+    : await channel.send({ embeds: [embed], components: [row, menuRow] });
   console.log(`[painel:suporte] ${existing ? `mensagem existente encontrada (${message.id})` : `mensagem enviada (${message.id})`}`);
-  if (!message.pinned) {
-    await message.pin();
-    console.log(`[painel:suporte] mensagem fixada com sucesso (${message.id})`);
-  } else {
-    console.log(`[painel:suporte] mensagem já estava fixada (${message.id})`);
-  }
 }
 
 async function ensurePanelInChannel(label, channelId, ensurePanel) {
@@ -184,11 +197,8 @@ async function ensurePanelInChannel(label, channelId, ensurePanel) {
       ["ReadMessageHistory", PermissionFlagsBits.ReadMessageHistory],
       ["SendMessages", PermissionFlagsBits.SendMessages],
       ["EmbedLinks", PermissionFlagsBits.EmbedLinks],
-      ["PinMessages", PermissionFlagsBits.PinMessages],
     ];
-    const missing = permissions
-      ? requiredPermissions.filter(([, flag]) => !permissions.has(flag)).map(([name]) => name)
-      : requiredPermissions.map(([name]) => name);
+    const missing = permissions ? requiredPermissions.filter(([, flag]) => !permissions.has(flag)).map(([name]) => name) : requiredPermissions.map(([name]) => name);
     if (missing.length) {
       console.error(`[painel:${label}] permissões ausentes: ${missing.join(", ")}`);
       return;
@@ -197,7 +207,7 @@ async function ensurePanelInChannel(label, channelId, ensurePanel) {
     await ensurePanel(channel);
     console.log(`[painel:${label}] verificação concluída sem duplicação`);
   } catch (error) {
-    console.error(`[painel:${label}] erro durante busca/envio/fixação:`, error);
+    console.error(`[painel:${label}] erro durante busca ou envio:`, error);
   }
 }
 
@@ -293,16 +303,26 @@ client.on("interactionCreate", async (interaction) => {
     saveGiveaways();
   }
 
-  if (interaction.isButton() && interaction.customId === "support_open") {
+  if (
+    (interaction.isButton() && interaction.customId === "support_open") ||
+    (interaction.isStringSelectMenu() && interaction.customId === "support_category")
+  ) {
     const guild = interaction.guild;
-    const existing = guild.channels.cache.find((channel) => channel.topic === `ticket-owner:${interaction.user.id}`);
+    const category = interaction.isStringSelectMenu() ? interaction.values[0] : "suporte";
+    const categoryNames = {
+      parcerias: "Parcerias",
+      suporte: "Suporte",
+      "reserva-compra": "Reserva-Compra",
+    };
+    const categoryName = categoryNames[category] || "Suporte";
+    const existing = guild.channels.cache.find((channel) => channel.topic?.startsWith(`ticket-owner:${interaction.user.id}`));
     if (existing) return interaction.reply({ content: `Você já possui um atendimento aberto: ${existing}.`, ephemeral: true });
     const staffRoles = guild.roles.cache.filter((role) => role.id !== guild.roles.everyone.id && role.permissions.has(PermissionFlagsBits.ManageGuild));
     const ticket = await guild.channels.create({
-      name: `ticket-${interaction.user.username.toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 18) || interaction.user.id.slice(-6)}`,
+      name: `ticket-${categoryName.toLowerCase()}-${interaction.user.username.toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 12) || interaction.user.id.slice(-6)}`,
       type: ChannelType.GuildText,
       parent: interaction.channel.parentId || undefined,
-      topic: `ticket-owner:${interaction.user.id}`,
+      topic: `ticket-owner:${interaction.user.id};ticket-category:${category}`,
       permissionOverwrites: [
         { id: guild.roles.everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
         { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
@@ -313,7 +333,7 @@ client.on("interactionCreate", async (interaction) => {
       ],
     });
     await ticket.send({
-      embeds: [new EmbedBuilder().setTitle("Ticket Aberto").setColor(0x22c55e).setDescription(`${interaction.user} criou um novo ticket. Explique como podemos ajudar.`)],
+      embeds: [new EmbedBuilder().setTitle(`Ticket Aberto • ${categoryName}`).setColor(BRAND.green).setDescription(`${interaction.user} criou um ticket de **${categoryName}**. Explique como podemos ajudar.`)],
       components: [ticketControls()],
     });
     await interaction.reply({ content: `Seu atendimento foi aberto: ${ticket}.`, ephemeral: true });

@@ -33,7 +33,7 @@ Use `/sorteio premio:... duracao:30m ganhadores:1`. A duração aceita `s` (segu
 
 ### Suporte
 
-Use `/suporte` em um servidor para publicar ou reparar o painel fixado no canal configurado. O painel contém o texto:
+Use `/suporte` em um servidor para publicar ou reparar o painel no canal configurado. O painel contém o texto:
 
 > Precisando de ajuda? Crie um ticket aqui e nossa equipe vai te atender o mais rápido possível.
 
