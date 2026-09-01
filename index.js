@@ -144,7 +144,7 @@ function findCustomEmoji(guild, keywords) {
 
 async function ensureSupportPanel(channel) {
   const messages = await channel.messages.fetch({ limit: 50 });
-  const existing = messages.find((message) => message.author.id === client.user.id && ["Suporte", "Suporte CraftShop"].includes(message.embeds[0]?.title));
+  const existingPanels = messages.filter((message) => message.author.id === client.user.id && ["Suporte", "Suporte CraftShop"].includes(message.embeds[0]?.title));
   const embed = new EmbedBuilder()
     .setTitle("Suporte")
     .setColor(BRAND.green)
@@ -184,10 +184,12 @@ Pronto! Sua vaga está garantida. 🎉`)
       { label: "Reserva", description: "Crie um ticket para fazer sua reserva.", value: "reserva", ...(purchaseEmoji && { emoji: { id: purchaseEmoji.id, name: purchaseEmoji.name } }) },
     );
   const menuRow = new ActionRowBuilder().addComponents(menu);
-  const message = existing
-    ? await existing.edit({ embeds: [embed], components: [menuRow] })
-    : await channel.send({ embeds: [embed], components: [menuRow] });
-  console.log(`[painel:suporte] ${existing ? `mensagem existente encontrada (${message.id})` : `mensagem enviada (${message.id})`}`);
+  for (const oldPanel of existingPanels.values()) {
+    await oldPanel.delete().catch((error) => console.error(`[painel:suporte] não foi possível apagar painel antigo (${oldPanel.id}):`, error.message));
+    console.log(`[painel:suporte] painel antigo removido (${oldPanel.id})`);
+  }
+  const message = await channel.send({ embeds: [embed], components: [menuRow] });
+  console.log(`[painel:suporte] painel verde enviado (${message.id})`);
 }
 
 async function ensurePanelInChannel(label, channelId, ensurePanel) {
