@@ -10,10 +10,13 @@ const {
   Client,
   EmbedBuilder,
   GatewayIntentBits,
+  ModalBuilder,
   PermissionFlagsBits,
   REST,
   Routes,
   StringSelectMenuBuilder,
+  TextInputBuilder,
+  TextInputStyle,
 } = require("discord.js");
 
 const required = ["DISCORD_TOKEN", "ID_CLIENTE"];
@@ -173,7 +176,7 @@ Pronto! Sua vaga está garantida. 🎉`)
     .addOptions(
       { label: "Parcerias", description: "Fale com dono/ADM sobre divulgação do seu servidor; envie o TXT do servidor", value: "parcerias", ...(partnershipEmoji && { emoji: { id: partnershipEmoji.id, name: partnershipEmoji.name } }) },
       { label: "Suporte", description: "Crie um ticket para falar com o ADM/DONO e receber ajuda", value: "suporte", ...(supportEmoji && { emoji: { id: supportEmoji.id, name: supportEmoji.name } }) },
-      { label: "Reserva/Compra", description: "Crie um ticket para fazer sua reserva ou realizar uma compra", value: "reserva-compra", ...(purchaseEmoji && { emoji: { id: purchaseEmoji.id, name: purchaseEmoji.name } }) },
+      { label: "Reserva", description: "Crie um ticket para fazer sua reserva.", value: "reserva", ...(purchaseEmoji && { emoji: { id: purchaseEmoji.id, name: purchaseEmoji.name } }) },
     );
   const menuRow = new ActionRowBuilder().addComponents(menu);
   const message = existing
@@ -221,9 +224,57 @@ function isStaff(interaction) {
 
 function ticketControls() {
   return new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId("ticket_close").setLabel("Fechar Ticket").setEmoji("🔒").setStyle(ButtonStyle.Danger),
-    new ButtonBuilder().setCustomId("ticket_claim").setLabel("Reivindicar Ticket").setEmoji("📜").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId("ticket_close").setLabel("Fechar Ticket").setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId("ticket_claim").setLabel("Assumir Ticket").setStyle(ButtonStyle.Primary),
   );
+}
+
+const ticketCategories = {
+  parcerias: {
+    label: "Parcerias",
+    modalTitle: "Formulário • Parcerias",
+    fields: [
+      { id: "nick", label: "Nick", placeholder: "Informe seu nick dentro do servidor", required: false },
+      { id: "server", label: "Nome do servidor/projeto", placeholder: "Qual o nome do seu servidor?", required: true },
+      { id: "link", label: "Link/TXT do servidor", placeholder: "Cole o link ou informações do seu servidor", required: true, style: TextInputStyle.Paragraph },
+    ],
+  },
+  suporte: {
+    label: "Suporte",
+    modalTitle: "Formulário • Suporte",
+    fields: [
+      { id: "nick", label: "Nick", placeholder: "Informe seu nick dentro do servidor", required: false },
+      { id: "problem", label: "Dúvida/Problema", placeholder: "Qual é a sua dúvida ou problema?", required: true, maxLength: 512, style: TextInputStyle.Paragraph },
+    ],
+  },
+  reserva: {
+    label: "Reserva/Compra",
+    modalTitle: "Formulário • Reserva/Compra",
+    fields: [
+      { id: "nick", label: "Nick", placeholder: "Informe seu nick dentro do servidor", required: false },
+      { id: "product", label: "Produto/Serviço desejado", placeholder: "Ex: icons, banner, tela finl, thumbnail, artes", required: true },
+      { id: "quantity", label: "Quantidade", placeholder: "Quantos itens você deseja?", required: true },
+      { id: "coupon", label: "Código de desconto", placeholder: "Se você tiver um cupom de desconto, informe aqui", required: false },
+    ],
+  },
+};
+
+function ticketModal(category) {
+  const config = ticketCategories[category];
+  return new ModalBuilder()
+    .setCustomId(`ticket_modal:${category}`)
+    .setTitle(config.modalTitle)
+    .addComponents(
+      ...config.fields.map((field) => new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId(field.id)
+          .setLabel(field.label)
+          .setPlaceholder(field.placeholder)
+          .setRequired(field.required)
+          .setStyle(field.style || TextInputStyle.Short)
+          .setMaxLength(field.maxLength || 1000),
+      )),
+    );
 }
 
 const commands = [
@@ -308,27 +359,26 @@ client.on("interactionCreate", async (interaction) => {
   }
 
   if (interaction.isStringSelectMenu() && interaction.customId === "support_category") {
-    const guild = interaction.guild;
     const category = interaction.values[0];
-    const categoryNames = {
-      parcerias: "Parcerias",
-      suporte: "Suporte",
-      "reserva-compra": "Reserva-Compra",
-    };
-    const categoryName = categoryNames[category] || "Suporte";
+    if (!ticketCategories[category]) return interaction.reply({ content: "Essa categoria de atendimento não está disponível.", ephemeral: true });
+    return interaction.showModal(ticketModal(category));
+  }
+
+  if (interaction.isModalSubmit() && interaction.customId.startsWith("ticket_modal:")) {
+    const category = interaction.customId.split(":")[1];
+    const config = ticketCategories[category];
+    if (!config) return interaction.reply({ content: "Essa categoria de atendimento não está disponível.", ephemeral: true });
+    const answers = Object.fromEntries(config.fields.map((field) => [field.id, interaction.fields.getTextInputValue(field.id).trim()]));
+    const guild = interaction.guild;
     const existing = guild.channels.cache.find((channel) => channel.topic?.startsWith(`ticket-owner:${interaction.user.id}`));
     if (existing) return interaction.reply({ content: `Você já possui um atendimento aberto: ${existing}.`, ephemeral: true });
     const staffRoles = STAFF_ROLE_IDS.filter((roleId) => guild.roles.cache.has(roleId));
     const missingStaffRoles = STAFF_ROLE_IDS.filter((roleId) => !guild.roles.cache.has(roleId));
     if (missingStaffRoles.length) console.error(`[ticket] cargos de staff não encontrados no servidor: ${missingStaffRoles.join(", ")}`);
-    const botPermissions = [
-      PermissionFlagsBits.ViewChannel,
-      PermissionFlagsBits.SendMessages,
-      PermissionFlagsBits.ReadMessageHistory,
-      PermissionFlagsBits.ManageChannels,
-    ];
+    const categoryName = config.label;
+    const safeUsername = interaction.user.username.toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 12) || interaction.user.id.slice(-6);
     const ticket = await guild.channels.create({
-      name: `ticket-${categoryName.toLowerCase()}-${interaction.user.username.toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 12) || interaction.user.id.slice(-6)}`,
+      name: `ticket-${category}-${safeUsername}`,
       type: ChannelType.GuildText,
       parent: TICKET_CATEGORY_ID,
       topic: `ticket-owner:${interaction.user.id};ticket-category:${category}`,
@@ -339,11 +389,20 @@ client.on("interactionCreate", async (interaction) => {
           id: roleId,
           allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageChannels],
         })),
-        { id: client.user.id, allow: botPermissions },
+        { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageChannels] },
       ],
     });
+    const summary = [
+      answers.nick && `**Nick:** ${answers.nick}`,
+      answers.server && `**Nome do servidor/projeto:** ${answers.server}`,
+      answers.link && `**Link/TXT do servidor:** ${answers.link}`,
+      answers.problem && `**Dúvida/Problema:** ${answers.problem}`,
+      answers.product && `**Produto/Serviço desejado:** ${answers.product}`,
+      answers.quantity && `**Quantidade:** ${answers.quantity}`,
+      answers.coupon && `**Código de desconto:** ${answers.coupon}`,
+    ].filter(Boolean).join("\n");
     await ticket.send({
-      embeds: [new EmbedBuilder().setTitle(`Ticket Aberto • ${categoryName}`).setColor(BRAND.green).setDescription(`${interaction.user} criou um ticket de **${categoryName}**. Explique como podemos ajudar.`)],
+      embeds: [new EmbedBuilder().setTitle(`Ticket Aberto • ${categoryName}`).setColor(BRAND.green).setDescription(`${interaction.user} criou um ticket de **${categoryName}**.\n\n${summary}`)],
       components: [ticketControls()],
     });
     await interaction.reply({ content: `Seu atendimento foi aberto: ${ticket}.`, ephemeral: true });
