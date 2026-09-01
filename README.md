@@ -33,7 +33,7 @@ Use `/sorteio premio:... duracao:30m ganhadores:1`. A duração aceita `s` (segu
 
 ### Suporte
 
-Use `/suporte` em um servidor para publicar ou reparar o painel no canal configurado. O painel possui apenas um menu de seleção com as categorias Reserva, Parcerias e Suporte; não há botão separado para abrir tickets.
+Use `/suporte` em um servidor para publicar ou reparar o painel no canal configurado. O painel possui apenas um menu de seleção com as categorias Reserva, Parcerias e Suporte; não há botão separado para abrir tickets. Todos os painéis principais usam o verde oficial da Craft Shop.
 
 > Precisando de ajuda? Crie um ticket aqui e nossa equipe vai te atender o mais rápido possível.
 

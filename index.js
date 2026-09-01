@@ -42,8 +42,8 @@ const BRAND = {
 };
 const TICKET_COLORS = {
   parcerias: BRAND.green,
-  suporte: BRAND.purple,
-  reserva: BRAND.orange,
+  suporte: BRAND.green,
+  reserva: BRAND.green,
 };
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers],
@@ -147,7 +147,7 @@ async function ensureSupportPanel(channel) {
   const existing = messages.find((message) => message.author.id === client.user.id && ["Suporte", "Suporte CraftShop"].includes(message.embeds[0]?.title));
   const embed = new EmbedBuilder()
     .setTitle("Suporte")
-    .setColor(BRAND.purple)
+    .setColor(BRAND.green)
     .setDescription(`Abra um ticket para seu pedido aqui!
 Informe o serviço desejado, data de entrega e qualquer detalhe importante.
 Clientes com reserva têm prioridade no atendimento.
