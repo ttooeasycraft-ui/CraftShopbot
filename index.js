@@ -369,6 +369,7 @@ client.on("interactionCreate", async (interaction) => {
     const config = ticketCategories[category];
     if (!config) return interaction.reply({ content: "Essa categoria de atendimento não está disponível.", ephemeral: true });
     const answers = Object.fromEntries(config.fields.map((field) => [field.id, interaction.fields.getTextInputValue(field.id).trim()]));
+    console.log(`[ticket] formulário recebido: categoria=${category}, usuário=${interaction.user.id}`);
     const guild = interaction.guild;
     const existing = guild.channels.cache.find((channel) => channel.topic?.startsWith(`ticket-owner:${interaction.user.id}`));
     if (existing) return interaction.reply({ content: `Você já possui um atendimento aberto: ${existing}.`, ephemeral: true });
@@ -392,17 +393,24 @@ client.on("interactionCreate", async (interaction) => {
         { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageChannels] },
       ],
     });
-    const summary = [
-      answers.nick && `**Nick:** ${answers.nick}`,
-      answers.server && `**Nome do servidor/projeto:** ${answers.server}`,
-      answers.link && `**Link/TXT do servidor:** ${answers.link}`,
-      answers.problem && `**Dúvida/Problema:** ${answers.problem}`,
-      answers.product && `**Produto/Serviço desejado:** ${answers.product}`,
-      answers.quantity && `**Quantidade:** ${answers.quantity}`,
-      answers.coupon && `**Código de desconto:** ${answers.coupon}`,
-    ].filter(Boolean).join("\n");
+    const summaryFields = [
+      answers.nick && { name: "Nick", value: answers.nick, inline: false },
+      answers.server && { name: "Nome do servidor/projeto", value: answers.server, inline: false },
+      answers.link && { name: "Link/TXT do servidor", value: answers.link, inline: false },
+      answers.problem && { name: "Dúvida/Problema", value: answers.problem, inline: false },
+      answers.product && { name: "Produto/Serviço desejado", value: answers.product, inline: false },
+      answers.quantity && { name: "Quantidade", value: answers.quantity, inline: true },
+      answers.coupon && { name: "Código de desconto", value: answers.coupon, inline: true },
+    ].filter(Boolean);
     await ticket.send({
-      embeds: [new EmbedBuilder().setTitle(`Ticket Aberto • ${categoryName}`).setColor(BRAND.green).setDescription(`${interaction.user} criou um ticket de **${categoryName}**.\n\n${summary}`)],
+      embeds: [
+        new EmbedBuilder()
+          .setTitle(`Ticket Aberto • ${categoryName}`)
+          .setColor(BRAND.green)
+          .setDescription(`${interaction.user} criou um ticket de **${categoryName}**.\n\n**Formulário de atendimento:**`)
+          .addFields(summaryFields)
+          .setFooter({ text: "Craft Shop • atendimento" }),
+      ],
       components: [ticketControls()],
     });
     await interaction.reply({ content: `Seu atendimento foi aberto: ${ticket}.`, ephemeral: true });
