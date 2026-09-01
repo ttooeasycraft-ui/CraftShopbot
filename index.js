@@ -40,6 +40,11 @@ const BRAND = {
   blue: 0x38bdf8,
   purple: 0xa855f7,
 };
+const TICKET_COLORS = {
+  parcerias: BRAND.green,
+  suporte: BRAND.purple,
+  reserva: BRAND.orange,
+};
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers],
 });
@@ -277,6 +282,11 @@ function ticketModal(category) {
     );
 }
 
+function answerBox(label, value) {
+  const safeValue = String(value).replace(/`/g, "ˋ").replace(/\n/g, " ");
+  return `**${label}:** \`${safeValue}\``;
+}
+
 const commands = [
   {
     name: "sorteio",
@@ -393,22 +403,21 @@ client.on("interactionCreate", async (interaction) => {
         { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageChannels] },
       ],
     });
-    const summaryFields = [
-      answers.nick && { name: "Nick", value: answers.nick, inline: false },
-      answers.server && { name: "Nome do servidor/projeto", value: answers.server, inline: false },
-      answers.link && { name: "Link/TXT do servidor", value: answers.link, inline: false },
-      answers.problem && { name: "Dúvida/Problema", value: answers.problem, inline: false },
-      answers.product && { name: "Produto/Serviço desejado", value: answers.product, inline: false },
-      answers.quantity && { name: "Quantidade", value: answers.quantity, inline: true },
-      answers.coupon && { name: "Código de desconto", value: answers.coupon, inline: true },
-    ].filter(Boolean);
+    const summary = [
+      answers.nick && answerBox("Nick", answers.nick),
+      answers.server && answerBox("Nome do servidor/projeto", answers.server),
+      answers.link && answerBox("Link/TXT do servidor", answers.link),
+      answers.problem && answerBox("Dúvida/Problema", answers.problem),
+      answers.product && answerBox("Produto/Serviço desejado", answers.product),
+      answers.quantity && answerBox("Quantidade", answers.quantity),
+      answers.coupon && answerBox("Código de desconto", answers.coupon),
+    ].filter(Boolean).join("\n");
     await ticket.send({
       embeds: [
         new EmbedBuilder()
           .setTitle(`Ticket Aberto • ${categoryName}`)
-          .setColor(BRAND.green)
-          .setDescription(`${interaction.user} criou um ticket de **${categoryName}**.\n\n**Formulário de atendimento:**`)
-          .addFields(summaryFields)
+          .setColor(TICKET_COLORS[category] || BRAND.blue)
+          .setDescription(`${interaction.user} criou um ticket de **${categoryName}**.\n\n**Formulário de atendimento:**\n${summary}`)
           .setFooter({ text: "Craft Shop • atendimento" }),
       ],
       components: [ticketControls()],
