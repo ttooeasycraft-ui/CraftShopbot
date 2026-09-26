@@ -383,8 +383,8 @@ client.on("interactionCreate", async (interaction) => {
     const answers = Object.fromEntries(config.fields.map((field) => [field.id, interaction.fields.getTextInputValue(field.id).trim()]));
     console.log(`[ticket] formulário recebido: categoria=${category}, usuário=${interaction.user.id}`);
     const guild = interaction.guild;
-    const existing = guild.channels.cache.find((channel) => channel.topic?.startsWith(`ticket-owner:${interaction.user.id}`));
-    if (existing) return interaction.reply({ content: `Você já possui um atendimento aberto: ${existing}.`, ephemeral: true });
+    const existing = guild.channels.cache.find((channel) => channel.topic?.startsWith(`ticket-owner:${interaction.user.id};ticket-category:${category}`));
+    if (existing) return interaction.reply({ content: `Você já possui um atendimento de **${config.label}** aberto: ${existing}.`, ephemeral: true });
     const staffRoles = STAFF_ROLE_IDS.filter((roleId) => guild.roles.cache.has(roleId));
     const missingStaffRoles = STAFF_ROLE_IDS.filter((roleId) => !guild.roles.cache.has(roleId));
     if (missingStaffRoles.length) console.error(`[ticket] cargos de staff não encontrados no servidor: ${missingStaffRoles.join(", ")}`);
@@ -417,33 +417,4 @@ client.on("interactionCreate", async (interaction) => {
     await ticket.send({
       embeds: [
         new EmbedBuilder()
-          .setTitle(`Ticket Aberto • ${categoryName}`)
-          .setColor(TICKET_COLORS[category] || BRAND.blue)
-          .setDescription(`${interaction.user} criou um ticket de **${categoryName}**.\n\n**Formulário de atendimento:**\n${summary}`)
-          .setFooter({ text: "Craft Shop • atendimento" }),
-      ],
-      components: [ticketControls()],
-    });
-    await interaction.reply({ content: `Seu atendimento foi aberto: ${ticket}.`, ephemeral: true });
-  }
-
-  if (interaction.isButton() && ["ticket_close", "ticket_claim"].includes(interaction.customId)) {
-    const channel = interaction.channel;
-    if (!channel?.isTextBased() || !channel.topic?.startsWith("ticket-owner:")) {
-      return interaction.reply({ content: "Este botão só funciona dentro de um ticket.", ephemeral: true });
-    }
-    const ownerId = channel.topic.replace("ticket-owner:", "");
-    if (interaction.customId === "ticket_claim") {
-      if (!isStaff(interaction)) return interaction.reply({ content: "Apenas a staff pode reivindicar tickets.", ephemeral: true });
-      await channel.send(`📜 Ticket reivindicado por ${interaction.user}.`);
-      return interaction.reply({ content: "Você reivindicou este ticket.", ephemeral: true });
-    }
-    if (!isStaff(interaction) && interaction.user.id !== ownerId) {
-      return interaction.reply({ content: "Apenas o autor do ticket ou a staff pode fechá-lo.", ephemeral: true });
-    }
-    await interaction.reply({ content: "Este ticket será fechado em 5 segundos.", ephemeral: true });
-    setTimeout(() => channel.delete("Ticket fechado").catch(() => {}), 5000);
-  }
-});
-
-client.login(process.env.DISCORD_TOKEN);
+   
