@@ -170,7 +170,7 @@ Pronto! Sua vaga está garantida. 🎉`)
       { name: "🎮 Atendimento Craft Shop", value: "Nossa equipe está pronta para ajudar com seus pedidos e produtos digitais.", inline: false },
       { name: "🧱 Como funciona", value: "Clique abaixo, explique o que precisa e aguarde a nossa equipe.", inline: false },
     )
-    .setFooter({ text: "Craft Shop • thumbnails, banners e artes personalizadas" });
+    .setFooter({ text: "Craft Shop • thumbnails, banners, artes personalizadas e bot" });
   const partnershipEmoji = findCustomEmoji(channel.guild, ["parceria", "partner", "divulgacao", "megafone"]);
   const supportEmoji = findCustomEmoji(channel.guild, ["suporte", "support", "help", "adm", "dono"]);
   const purchaseEmoji = findCustomEmoji(channel.guild, ["reserva", "compra", "shop", "buy", "ticket"]);
@@ -259,7 +259,7 @@ const ticketCategories = {
     modalTitle: "Formulário • Reserva/Compra",
     fields: [
       { id: "nick", label: "Nick", placeholder: "Informe seu nick dentro do servidor", required: false },
-      { id: "product", label: "Produto/Serviço desejado", placeholder: "Ex: icons, banner, tela finl, thumbnail, artes", required: true },
+      { id: "product", label: "Produto/Serviço desejado", placeholder: "Ex: icons, banner, tela finl, thumbnail, artes, bot", required: true },
       { id: "quantity", label: "Quantidade", placeholder: "Quantos itens você deseja?", required: true },
       { id: "coupon", label: "Código de desconto", placeholder: "Se você tiver um cupom de desconto, informe aqui", required: false },
     ],
@@ -416,5 +416,4 @@ client.on("interactionCreate", async (interaction) => {
     ].filter(Boolean).join("\n");
     await ticket.send({
       embeds: [
-        new EmbedBuilder()
-   
+        new EmbedBui
